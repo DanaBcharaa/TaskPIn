@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installment Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Body Styling */
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #D8CDB4, #F5F0E6);
+            padding: 20px;
+        }
+
+        /* Container */
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: #FDF8F0;
+            border-radius: 15px;
+            padding: 20px 30px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .container h1, .container h2 {
+            color: #AA8B63;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Form Card */
+        .form-card {
+            background: #FFF;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-card form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .form-row {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .form-row div {
+            flex: 1;
+        }
+
+        label {
+            font-size: 14px;
+            color: #555;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            height: 40px;
+            padding: 5px 10px;
+            border: 1px solid #AA8B63;
+            border-radius: 8px;
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        textarea {
+            height: 80px;
+            resize: none;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #EF888C;
+            box-shadow: 0 0 5px rgba(239, 136, 140, 0.6);
+        }
+
+        button {
+            width: 100%;
+            padding: 10px 15px;
+            background: #EF888C;
+            color: #FFF;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background: #D3777A;
+        }
+
+        /* Table Styling */
+        .table-container {
+            overflow-x: auto;
+            border: 1px solid #EAEAEA;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table th, table td {
+            padding: 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        table thead th {
+            background: #AA8B63;
+            color: #FFF;
+        }
+
+        table tbody tr:nth-child(odd) {
+            background: #F9F9F9;
+        }
+
+        table tbody tr:hover {
+            background: #EFEFEF;
+        }
+
+        /* Reminders Container */
+        .reminders-container {
+            padding: 15px;
+            border: 1px solid #EAEAEA;
+            border-radius: 10px;
+            background: #FFF8E8;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
+        }
+        .reminder {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+   
+        .clickable {
+            color: #AA8B63;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .clickable:hover {
+            text-decoration: underline;
+        }
+        .custom-alert {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .alert-content {
+            background: #FDF8F0;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 300px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .close-btn {
+            float: right;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .color-box {
+            padding: 10px;
+            margin: 5px;
+            width: 80%;
+            text-align: center;
+            border-radius: 5px;
+        }
+        
+        .pending {
+            background: #FDF8F0;
+            color: black;
+        }
+        
+        .overdue {
+            background: #EF888C;
+            color: white;
+        }
+        
+        .finalized {
+            background: #AA8B63;
+            color: white;
+        }
+        .home-button {
+            display: block;
+            width: 100px;
+            margin: 10px auto;
+            padding: 10px;
+            background: #AA8B63;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .home-button:hover {
+            background: #8b6f4f;
+        }
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #D8CDB4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        #loading-screen img {
+            width: 230px; /* Make the logo larger */
+            height: 300px;
+            animation: spin 1.5s linear forwards, fadeOut 0.8s ease-out 1.5s forwards;
+        }
+        
+        /* Spinning effect */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Fade-out effect */
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0.1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <img src="logo.png" alt="Loading Logo">
+    </div>
+    <div class="container">
+        <button onclick="goHome()" class="home-button">Home</button>
+        <h1>Installment Tracker</h1>
+        
+        <div class="form-card">
+            <form id="installment-form">
+                <div class="form-row">
+                    <div class="protected-field">
+                        <label>Contract Number</label>
+                        <input type="text" id="contract-number" pattern="[0-9]*" inputmode="numeric" 
+                               onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
+                    </div>
+                    <div class="protected-field">
+                        <label>Email</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div>
+                        <label>Contract Date</label>
+                        <input type="date" id="contract-date" required>
+                    </div>
+                    <div>
+                        <label>Quantity</label>
+                        <input type="number" id="quantity" min="1" pattern="[0-9]*" inputmode="numeric"
+                               onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label>Installation Date</label>
+                        <input type="date" id="installation-date" required>
+                    </div>
+                    <div>
+                        <label>Finalization Date</label>
+                        <input type="date" id="finalization-date" required>
+                    </div>
+                    <div>
+                        <label>Period</label>
+                        <select id="period" required>
+                            <option value="30">30 Days</option>
+                            <option value="60">60 Days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Comments</label>
+                        <textarea id="comments" rows="1"></textarea>
+                    </div>
+                </div>
+                <button type="submit">Add New Contract</button>
+            </form>
+        </div>
+
+        <h2>Contracts</h2>
+        <div class="table-container">
+            <table id="installments-table">
+                <thead>
+                    <tr>
+                        <th>Contract Number</th>
+                        <th>Email</th>
+                        <th>Contract Date</th>
+                        <th>Quantity</th>
+                        <th>Installation Date</th>
+                        <th>Finalization Date</th>
+                        <th>Period</th>
+                        <th>Comments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <h2 class="clickable" id="reminders-heading">Reminders</h2>
+
+        <div class="reminders-container" id="alerts-box"></div>
+    </div>
+
+    <div id="customAlert" class="custom-alert">
+        <div class="alert-content">
+            <span class="close-btn" onclick="closeAlert()">&times;</span>
+            <h3>Reminder Colors</h3>
+            <div class="color-box pending">Pending</div>
+            <div class="color-box overdue">Overdue</div>
+            <div class="color-box finalized">Finalized</div>
+        </div>
+    </div>
+    
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        
+        const app = initializeApp({
+            apiKey: "AIzaSyDt9ZHjxeAVLJeFMz6hJLZmyUf_jWF9Usg",
+            authDomain: "contract-work1.firebaseapp.com",
+            projectId: "contract-work1",
+            storageBucket: "contract-work1.appspot.com",
+            messagingSenderId: "118035732362",
+            appId: "1:118035732362:web:70c3a0ede47d86b43d9a73"
+        });
+        
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Track user authentication state
+        let currentUser = null;
+        
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loadData();
+                loadReminders();
+            } else {
+                currentUser = null;
+                alert("Please log in to access your contracts.");
+            }
+        });
+        
+        window.goHome = function() {
+            window.location.href = "home.html";
+        };
+        
+        // Handle form submission
+        document.getElementById("installment-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+        
+            if (!currentUser) {
+                Swal.fire("Error", "You must be logged in to add contracts.", "error");
+                return;
+            }
+        
+            const contractNumber = document.getElementById("contract-number").value;
+            const email = document.getElementById("email").value;
+            const contractDate = document.getElementById("contract-date").value;
+            const quantity = document.getElementById("quantity").value;
+            const installationDate = document.getElementById("installation-date").value;
+            const finalizationDate = document.getElementById("finalization-date").value;
+            const period = parseInt(document.getElementById("period").value);
+            const comments = document.getElementById("comments").value;
+        
+            if (!contractNumber || !email || !contractDate || !quantity || !installationDate || !finalizationDate || !period) {
+                Swal.fire("Error", "Please fill in all required fields.", "error");
+                return;
+            }
+        
+            try {
+                // Save contract under the authenticated user's ID
+                await addDoc(collection(db, `users/${currentUser.uid}/contracts`), {
+                    contractNumber,
+                    email,
+                    contractDate,
+                    quantity,
+                    installationDate,
+                    finalizationDate,
+                    period,
+                    comments
+                });
+        
+                // Calculate Reminder Date
+                let reminderDate = new Date(installationDate);
+                reminderDate.setDate(reminderDate.getDate() + period);
+        
+                // Save Reminder under user's ID
+                await addDoc(collection(db, `users/${currentUser.uid}/reminders`), {
+                    contractNumber,
+                    reminderDate: reminderDate.toISOString().split("T")[0],
+                    finalizationDate
+                });
+        
+                Swal.fire("Success", "Contract and Reminder added successfully!", "success");
+        
+                loadData();
+                loadReminders();
+                document.getElementById("installment-form").reset();
+            } catch (error) {
+                console.error("Error saving contract:", error);
+                Swal.fire("Error", "Failed to save contract. Check console for details.", "error");
+            }
+        });
+        
+        async function saveRow(docId, button) {
+            if (!currentUser) return;
+        
+            const row = button.parentElement.parentElement;
+            const updatedData = {
+                contractNumber: row.cells[0].innerText,
+                email: row.cells[1].innerText,
+                contractDate: row.cells[2].innerText,
+                quantity: row.cells[3].innerText,
+                installationDate: row.cells[4].innerText,
+                finalizationDate: row.cells[5].innerText,
+                period: row.cells[6].innerText,
+                comments: row.cells[7].innerText
+            };
+        
+            try {
+                const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
+                await updateDoc(contractRef, updatedData);
+                Swal.fire("Updated", "Contract updated successfully!", "success");
+            } catch (error) {
+                console.error("Error updating document:", error);
+                Swal.fire("Error", "Failed to update contract.", "error");
+            }
+        }
+        
+        async function deleteRow(docId, button) {
+            if (!currentUser) return;
+        
+            try {
+                const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
+                await deleteDoc(contractRef);
+                button.parentElement.parentElement.remove();
+                Swal.fire("Deleted", "Contract deleted successfully!", "success");
+            } catch (error) {
+                console.error("Error deleting document:", error);
+                Swal.fire("Error", "Failed to delete contract.", "error");
+            }
+        }
+        
+        // Load contracts for the current user
+        async function loadData() {
+            if (!currentUser) return;
+        
+            const tableBody = document.querySelector("#installments-table tbody");
+            tableBody.innerHTML = "";
+        
+            const contracts = await getDocs(collection(db, `users/${currentUser.uid}/contracts`));
+            contracts.forEach((doc) => {
+                const data = doc.data();
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td contenteditable="true">${data.contractNumber}</td>
+                    <td contenteditable="true">${data.email}</td>
+                    <td contenteditable="true">${data.contractDate}</td>
+                    <td contenteditable="true">${data.quantity}</td>
+                    <td contenteditable="true">${data.installationDate}</td>
+                    <td contenteditable="true">${data.finalizationDate}</td>
+                    <td contenteditable="true">${data.period}</td>
+                    <td contenteditable="true">${data.comments || ''}</td>
+                    <td>
+                        <button onclick="saveRow('${doc.id}', this)">Save</button>
+                        <button onclick="deleteRow('${doc.id}', this)">Delete</button>
+                    </td>
+                `;
+            });
+        }
+        
+        // Load reminders for the current user
+        async function loadReminders() {
+            if (!currentUser) return;
+        
+            const alertsBox = document.getElementById("alerts-box");
+            alertsBox.innerHTML = "";
+        
+            const reminders = await getDocs(collection(db, `users/${currentUser.uid}/reminders`));
+            reminders.forEach((doc) => {
+                const reminder = doc.data();
+                const div = document.createElement("div");
+                div.className = "reminder";
+                div.innerHTML = `<strong>${reminder.contractNumber}</strong>: Due on ${reminder.reminderDate}`;
+        
+                // Attach click event properly
+                div.addEventListener("click", () => showContractDetails(reminder.contractNumber));
+        
+                alertsBox.appendChild(div);
+            });
+        }
+        
+        
+        async function showContractDetails(contractNumber) {
+            if (!currentUser) return;
+        
+            const contractRef = collection(db, `users/${currentUser.uid}/contracts`);
+            const q = query(contractRef, where("contractNumber", "==", contractNumber));
+            const querySnapshot = await getDocs(q);
+        
+            if (!querySnapshot.empty) {
+                const contractData = querySnapshot.docs[0].data();
+                Swal.fire({
+                    title: `Contract #${contractData.contractNumber}`,
+                    html: `
+                        <p><strong>Email:</strong> ${contractData.email}</p>
+                        <p><strong>Contract Date:</strong> ${contractData.contractDate}</p>
+                        <p><strong>Quantity:</strong> ${contractData.quantity}</p>
+                        <p><strong>Installation Date:</strong> ${contractData.installationDate}</p>
+                        <p><strong>Finalization Date:</strong> ${contractData.finalizationDate}</p>
+                        <p><strong>Period:</strong> ${contractData.period}</p>
+                        <p><strong>Comments:</strong> ${contractData.comments || 'No comments'}</p>
+                    `,
+                    icon: 'info',
+                    confirmButtonText: 'OK'
+                });
+            } else {
+                Swal.fire("Error", "Contract details not found.", "error");
+            }
+        }
+        
+        window.saveRow = async function(docId, button) {
+            if (!currentUser) return;
+        
+            const row = button.parentElement.parentElement;
+            const updatedData = {
+                contractNumber: row.cells[0].innerText,
+                email: row.cells[1].innerText,
+                contractDate: row.cells[2].innerText,
+                quantity: row.cells[3].innerText,
+                installationDate: row.cells[4].innerText,
+                finalizationDate: row.cells[5].innerText,
+                period: row.cells[6].innerText,
+                comments: row.cells[7].innerText
+            };
+        
+            try {
+                const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
+                await updateDoc(contractRef, updatedData);
+                Swal.fire("Updated", "Contract updated successfully!", "success");
+            } catch (error) {
+                console.error("Error updating document:", error);
+                Swal.fire("Error", "Failed to update contract.", "error");
+            }
+        };
+        
+        window.deleteRow = async function(docId, button) {
+            if (!currentUser) return;
+        
+            try {
+                const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
+                await deleteDoc(contractRef);
+                button.parentElement.parentElement.remove();
+                Swal.fire("Deleted", "Contract deleted successfully!", "success");
+            } catch (error) {
+                console.error("Error deleting document:", error);
+                Swal.fire("Error", "Failed to delete contract.", "error");
+            }
+        };
+        document.getElementById("reminders-heading").addEventListener("click", explainReminder);
+
+        function explainReminder() {
+            Swal.fire({
+                title: "Reminder Colors Explained",
+                html: `
+                    <div class="color-box pending">Pending - Yet to be finalized</div>
+                    <div class="color-box overdue">Overdue - Past due date</div>
+                    <div class="color-box finalized">Finalized - Successfully completed</div>
+                `,
+                icon: "info"
+            });
+        }
+        
+        
+        window.addEventListener("load", function() {
+            setTimeout(() => {
+                document.getElementById("loading-screen").style.display = "none";
+            }, 2300); // Total time to allow spin + fade-out animation
+        });
+    
+        
+    </script>
+</body>
+</html>

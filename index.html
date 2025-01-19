@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Signup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Updated Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/11.2.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.2.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div id="loading-screen">
+        <img src="logo.png" alt="Loading Logo">
+    </div>
+    
+    <div class="wrapper">
+        <div class="header-switch">
+            <span class="login-link active">Login</span>
+            <span class="signup-link">Signup</span>
+        </div>
+        <div class="form login active">
+            <header>Login</header>
+            <form id="loginForm">
+                <input type="email" id="loginEmail" placeholder="Email address" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <a href="#">Forgot password?</a>
+                <input type="submit" value="Login">
+                <div id="loginError" style="color: red; margin-top: 10px;"></div>
+            </form>
+        </div>
+        <div class="form signup">
+            <header>Signup</header>
+            <form id="signupForm">
+                <input type="text" id="fullName" placeholder="Full name" required>
+                <input type="email" id="signupEmail" placeholder="Email address" required>
+                <input type="password" id="signupPassword" placeholder="Password" required>
+                <div class="checkbox">
+                    <input type="checkbox" id="terms" required>
+                    <label for="terms">I accept all terms & conditions</label>
+                </div>
+                <input type="submit" value="Signup">
+                <div id="signupError" style="color: red; margin-top: 10px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Firebase with your config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDt9ZHjxeAVLJeFMz6hJLZmyUf_jWF9Usg",
+            authDomain: "contract-work1.firebaseapp.com",
+            projectId: "contract-work1",
+            storageBucket: "contract-work1.firebasestorage.app",
+            messagingSenderId: "118035732362",
+            appId: "1:118035732362:web:70c3a0ede47d86b43d9a73"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Form elements
+        const loginForm = document.querySelector('.form.login');
+        const signupForm = document.querySelector('.form.signup');
+        const loginTab = document.querySelector('.login-link');
+        const signupTab = document.querySelector('.signup-link');
+
+        // Switch between forms
+        signupTab.addEventListener('click', () => {
+            loginForm.style.display = 'none';
+            signupForm.style.display = 'block';
+            signupTab.classList.add('active');
+            loginTab.classList.remove('active');
+            // Clear error messages
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('signupError').textContent = '';
+        });
+
+        loginTab.addEventListener('click', () => {
+            signupForm.style.display = 'none';
+            loginForm.style.display = 'block';
+            loginTab.classList.add('active');
+            signupTab.classList.remove('active');
+            // Clear error messages
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('signupError').textContent = '';
+        });
+
+        // Handle signup
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const signupErrorDiv = document.getElementById('signupError');
+            signupErrorDiv.textContent = ''; // Clear previous errors
+            
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const fullName = document.getElementById('fullName').value;
+
+            try {
+                // Create user with email and password
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                
+                // Add user info to Firestore
+                await db.collection('users').doc(userCredential.user.uid).set({
+                    fullName: fullName,
+                    email: email,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                console.log('User data saved successfully');
+                
+                // Clear form
+                document.getElementById('signupForm').reset();
+                
+                // Switch to login form
+                loginTab.click();
+                alert('Signup successful! Please login.');
+            } catch (error) {
+                console.error('Signup error:', error);
+                signupErrorDiv.textContent = error.message;
+            }
+        });
+
+        // Handle login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginErrorDiv = document.getElementById('loginError');
+            loginErrorDiv.textContent = ''; // Clear previous errors
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                
+                // Fetch user data from Firestore
+                const userDoc = await db.collection('users').doc(userCredential.user.uid).get();
+                
+                if (userDoc.exists) {
+                    console.log('User data retrieved:', userDoc.data());
+                    // Store user data in sessionStorage for use in home page
+                    sessionStorage.setItem('userData', JSON.stringify(userDoc.data()));
+                    window.location.href = 'home.html';
+                } else {
+                    console.error('No user data found in Firestore');
+                    loginErrorDiv.textContent = 'User data not found';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                loginErrorDiv.textContent = error.message;
+            }
+        });
+
+        // Check auth state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('User is signed in:', user.uid);
+                // Don't redirect here - let the login handler handle redirection
+            } else {
+                console.log('No user signed in');
+            }
+        });
+
+        
+            window.addEventListener("load", function() {
+                setTimeout(() => {
+                    document.getElementById("loading-screen").style.display = "none";
+                }, 2300); // Total time to allow spin + fade-out animation
+            });
+        
+        
+       
+        
+    </script>
+</body>
+</html>
