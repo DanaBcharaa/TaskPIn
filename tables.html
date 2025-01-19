@@ -388,6 +388,36 @@
             }
         });
         
+
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    let userData = sessionStorage.getItem('userData');
+                    if (!userData) {
+                        const userDoc = await db.collection('users').doc(user.uid).get();
+                        if (userDoc.exists) {
+                            userData = userDoc.data();
+                            sessionStorage.setItem('userData', JSON.stringify(userData));
+                        }
+                    } else {
+                        userData = JSON.parse(userData);
+                    }
+                    if (userData) {
+                        document.getElementById('userName').textContent = userData.fullName || 'User';
+                        document.getElementById('userEmail').textContent = userData.email;
+                        document.getElementById('userCreated').textContent = userData.createdAt ? new Date(userData.createdAt.seconds * 1000).toLocaleDateString() : 'N/A';
+                    }
+                } catch (error) {
+                    console.error('Error loading user data:', error);
+                }
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+
+
+        
         window.goHome = function() {
             window.location.href = "home.html";
         };
