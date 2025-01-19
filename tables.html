@@ -381,7 +381,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         
         const app = initializeApp({
@@ -552,6 +552,7 @@
             contracts.forEach((doc) => {
                 const data = doc.data();
                 const row = tableBody.insertRow();
+        
                 row.innerHTML = `
                     <td contenteditable="true">${data.contractNumber}</td>
                     <td contenteditable="true">${data.email}</td>
@@ -559,7 +560,12 @@
                     <td contenteditable="true">${data.quantity}</td>
                     <td contenteditable="true">${data.installationDate}</td>
                     <td contenteditable="true">${data.finalizationDate}</td>
-                    <td contenteditable="true">${data.period}</td>
+                    <td>
+                        <select onchange="updateDueDate(this, '${doc.id}')">
+                            <option value="30" ${data.period == 30 ? "selected" : ""}>30 Days</option>
+                            <option value="60" ${data.period == 60 ? "selected" : ""}>60 Days</option>
+                        </select>
+                    </td>
                     <td contenteditable="true">${data.comments || ''}</td>
                     <td>
                         <button onclick="saveRow('${doc.id}', this)">Save</button>
@@ -568,6 +574,52 @@
                 `;
             });
         }
+    
+        window.updateDueDate = async function(selectElement, docId) {
+            if (!currentUser) return;
+        
+            const newPeriod = parseInt(selectElement.value);
+            const row = selectElement.closest("tr");
+            const installationDate = new Date(row.cells[4].innerText); // Get installation date
+        
+            if (isNaN(installationDate.getTime())) {
+                Swal.fire("Error", "Invalid installation date. Please check the format.", "error");
+                return;
+            }
+        
+            // Calculate new due date
+            const newDueDate = new Date(installationDate);
+            newDueDate.setDate(newDueDate.getDate() + newPeriod);
+            const formattedDueDate = newDueDate.toISOString().split("T")[0]; // Convert to YYYY-MM-DD
+        
+            // Update UI
+            row.cells[5].innerText = formattedDueDate;
+        
+            try {
+                // Update contract in Firestore
+                const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
+                await updateDoc(contractRef, { period: newPeriod, finalizationDate: formattedDueDate });
+        
+                // Find and update related reminder
+                const remindersQuery = query(
+                    collection(db, `users/${currentUser.uid}/reminders`),
+                    where("contractNumber", "==", row.cells[0].innerText) // Find reminder by contract number
+                );
+                const reminderDocs = await getDocs(remindersQuery);
+                
+                reminderDocs.forEach(async (reminderDoc) => {
+                    const reminderRef = doc(db, `users/${currentUser.uid}/reminders`, reminderDoc.id);
+                    await updateDoc(reminderRef, { reminderDate: formattedDueDate });
+                });
+        
+                Swal.fire("Updated", "Due date updated successfully!", "success");
+                loadReminders(); // Refresh reminders
+            } catch (error) {
+                console.error("Error updating due date:", error);
+                Swal.fire("Error", "Failed to update due date.", "error");
+            }
+        };
+        
         
         // Load reminders for the current user
         async function loadReminders() {
@@ -629,61 +681,89 @@
                 contractDate: row.cells[2].innerText,
                 quantity: row.cells[3].innerText,
                 installationDate: row.cells[4].innerText,
-                finalizationDate: row.cells[5].innerText,
-                period: row.cells[6].innerText,
+                finalizationDate: row.cells[5].innerText, // Updated due date
+                period: parseInt(row.cells[6].querySelector("select").value),
                 comments: row.cells[7].innerText
             };
         
             try {
+                // Update contract
                 const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
                 await updateDoc(contractRef, updatedData);
-                Swal.fire("Updated", "Contract updated successfully!", "success");
+        
+                // Update related reminder
+                const remindersQuery = query(
+                    collection(db, `users/${currentUser.uid}/reminders`),
+                    where("contractNumber", "==", updatedData.contractNumber)
+                );
+                const reminderDocs = await getDocs(remindersQuery);
+                
+                reminderDocs.forEach(async (reminderDoc) => {
+                    const reminderRef = doc(db, `users/${currentUser.uid}/reminders`, reminderDoc.id);
+                    await updateDoc(reminderRef, { reminderDate: updatedData.finalizationDate });
+                });
+        
+                Swal.fire("Updated", "Contract and reminder updated successfully!", "success");
+                loadReminders(); // Refresh reminders
             } catch (error) {
                 console.error("Error updating document:", error);
-                Swal.fire("Error", "Failed to update contract.", "error");
+                Swal.fire("Error", "Failed to update contract and reminders.", "error");
             }
         };
         
+        
+        
         window.deleteRow = async function (docId, button) {
-            if (!currentUser) return;
+            if (!currentUser) {
+                console.error("Error: No authenticated user.");
+                return;
+            }
+        
+            console.log("Attempting to delete contract with ID:", docId);
         
             try {
                 const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
         
-                // Retrieve contract details to find associated reminder
-                const contractSnap = await getDocs(collection(db, `users/${currentUser.uid}/contracts`));
-                let contractData = null;
-                contractSnap.forEach((doc) => {
-                    if (doc.id === docId) {
-                        contractData = doc.data();
-                    }
-                });
-        
-                if (contractData) {
-                    const contractNumber = contractData.contractNumber;
-        
-                    // Find and delete the associated reminder
-                    const remindersQuery = query(collection(db, `users/${currentUser.uid}/reminders`), where("contractNumber", "==", contractNumber));
-                    const reminderDocs = await getDocs(remindersQuery);
-        
-                    reminderDocs.forEach(async (reminderDoc) => {
-                        await deleteDoc(doc(db, `users/${currentUser.uid}/reminders`, reminderDoc.id));
-                    });
+                // Check if the contract exists before deleting
+                const contractSnap = await getDoc(contractRef);
+                if (!contractSnap.exists()) {
+                    console.error("Error: Contract not found in Firestore.");
+                    Swal.fire("Error", "Contract not found!", "error");
+                    return;
                 }
         
-                // Delete the contract itself
+                const contractData = contractSnap.data();
+                console.log("Contract Data Retrieved:", contractData);
+        
+                // Delete the contract
                 await deleteDoc(contractRef);
+                console.log("Contract deleted successfully.");
+        
+                // Remove row from table
                 button.parentElement.parentElement.remove();
         
-                Swal.fire("Deleted", "Contract and associated reminders deleted successfully!", "success");
-                
+                // Find and delete the associated reminder
+                const remindersQuery = query(
+                    collection(db, `users/${currentUser.uid}/reminders`),
+                    where("contractNumber", "==", contractData.contractNumber)
+                );
+                const reminderDocs = await getDocs(remindersQuery);
+        
+                for (const reminderDoc of reminderDocs.docs) {
+                    console.log("Deleting associated reminder:", reminderDoc.id);
+                    await deleteDoc(doc(db, `users/${currentUser.uid}/reminders`, reminderDoc.id));
+                }
+        
+                Swal.fire("Deleted", "Contract and associated reminder deleted successfully!", "success");
+        
                 // Reload reminders to reflect changes
                 loadReminders();
             } catch (error) {
                 console.error("Error deleting document:", error);
-                Swal.fire("Error", "Failed to delete contract and reminders.", "error");
+                Swal.fire("Error", "Failed to delete contract and reminder.", "error");
             }
         };
+        
         
         document.getElementById("reminders-heading").addEventListener("click", explainReminder);
 
