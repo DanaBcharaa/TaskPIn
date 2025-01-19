@@ -264,12 +264,21 @@
             0% { opacity: 1; }
             100% { opacity: 0.1; }
         }
-        .comment-section {
+        .full-width-section {
             width: 100%;
             margin-top: 20px;
         }
-        .comment-section textarea {
+        .full-width-section input,
+        .full-width-section textarea {
             width: 100%;
+            height: 40px;
+            padding: 5px 10px;
+            border: 1px solid #AA8B63;
+            border-radius: 8px;
+            outline: none;
+            font-size: 14px;
+        }
+        .full-width-section textarea {
             height: 80px;
         }
         
@@ -291,10 +300,7 @@
                         <input type="text" id="contract-number" pattern="[0-9]*" inputmode="numeric" 
                                onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
                     </div>
-                    <div class="protected-field">
-                        <label>Email</label>
-                        <input type="email" id="email" required>
-                    </div>
+                   
                     <div>
                         <label>Contract Date</label>
                         <input type="date" id="contract-date" required>
@@ -320,9 +326,16 @@
                             <option value="30">30 Days</option>
                             <option value="60">60 Days</option>
                         </select>
-                    </div>        
+                    </div>
+                    
                 </div>
-                <div class="comment-section">
+                <div class="full-width-section">
+                    <label>Email</label>
+                    <input type="email" id="email" required>
+                </div>
+            
+                <!-- Comment input placed separately -->
+                <div class="full-width-section">
                     <label>Comments</label>
                     <textarea id="comments" rows="3"></textarea>
                 </div>
@@ -631,19 +644,47 @@
             }
         };
         
-        window.deleteRow = async function(docId, button) {
+        window.deleteRow = async function (docId, button) {
             if (!currentUser) return;
         
             try {
                 const contractRef = doc(db, `users/${currentUser.uid}/contracts`, docId);
+        
+                // Retrieve contract details to find associated reminder
+                const contractSnap = await getDocs(collection(db, `users/${currentUser.uid}/contracts`));
+                let contractData = null;
+                contractSnap.forEach((doc) => {
+                    if (doc.id === docId) {
+                        contractData = doc.data();
+                    }
+                });
+        
+                if (contractData) {
+                    const contractNumber = contractData.contractNumber;
+        
+                    // Find and delete the associated reminder
+                    const remindersQuery = query(collection(db, `users/${currentUser.uid}/reminders`), where("contractNumber", "==", contractNumber));
+                    const reminderDocs = await getDocs(remindersQuery);
+        
+                    reminderDocs.forEach(async (reminderDoc) => {
+                        await deleteDoc(doc(db, `users/${currentUser.uid}/reminders`, reminderDoc.id));
+                    });
+                }
+        
+                // Delete the contract itself
                 await deleteDoc(contractRef);
                 button.parentElement.parentElement.remove();
-                Swal.fire("Deleted", "Contract deleted successfully!", "success");
+        
+                Swal.fire("Deleted", "Contract and associated reminders deleted successfully!", "success");
+                
+                // Reload reminders to reflect changes
+                loadReminders();
             } catch (error) {
                 console.error("Error deleting document:", error);
-                Swal.fire("Error", "Failed to delete contract.", "error");
+                Swal.fire("Error", "Failed to delete contract and reminders.", "error");
             }
         };
+        
         document.getElementById("reminders-heading").addEventListener("click", explainReminder);
 
         function explainReminder() {
